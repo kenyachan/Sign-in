@@ -1,0 +1,34 @@
+# Dependencies
+node_modules/
+
+# Secrets: every .env file except the example
+.env
+.env.*
+!.env.example
+
+# Certificates and private keys
+certs/
+*.pem
+*.key
+*.crt
+*.p12
+
+# Database files (contain users, password hashes, sessions)
+data/*
+!data/.gitkeep
+*.db
+*.db-*
+*.sqlite
+*.sqlite3
+
+# Local backups
+.backup-*/
+
+# Logs, test output, OS/editor clutter
+*.log
+npm-debug.log*
+coverage/
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
