@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>Sign in</title>
+  <link rel="stylesheet" href="/styles.css">
+  <script type="module" src="/signin.js"></script>
+</head>
+<body>
+  <main class="card">
+    <h1>Sign in</h1>
+    <p class="subtitle">Welcome back.</p>
+
+    <form id="signin-form" novalidate>
+      <div class="field">
+        <label for="username">Username</label>
+        <input id="username" name="username" type="text" required
+               autocomplete="username webauthn" autocapitalize="none" spellcheck="false"
+               maxlength="30">
+      </div>
+
+      <div class="field">
+        <label for="password">Password</label>
+        <div class="input-row">
+          <input id="password" name="password" type="password" required
+                 autocomplete="current-password" maxlength="128">
+          <button type="button" class="toggle" data-toggle="password"
+                  aria-controls="password" aria-pressed="false">Show</button>
+        </div>
+      </div>
+
+      <button type="submit" class="primary">Sign in</button>
+    </form>
+
+    <div id="passkey-option" hidden>
+      <p class="divider"><span>or</span></p>
+      <button type="button" class="secondary" id="passkey-button">Sign in with a passkey</button>
+    </div>
+    <p class="status" id="status" role="status"></p>
+
+    <p class="footer"><a href="/recover">Forgot your password or lost your passkey?</a></p>
+    <p class="footer footer-tight">New here? <a href="/signup">Create an account</a></p>
+  </main>
+</body>
+</html>

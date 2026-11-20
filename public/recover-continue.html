@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>Get back into your account</title>
+  <link rel="stylesheet" href="/styles.css">
+  <script src="/recover-continue.js" defer></script>
+</head>
+<body>
+  <main class="card">
+    <h1>Get back in</h1>
+    <p class="subtitle" id="message" role="status">Checking your link…</p>
+
+    <div id="choices" hidden>
+      <form id="password-form" novalidate>
+        <!-- Lets password managers save the new password under the right account. -->
+        <input type="text" name="username" id="username" autocomplete="username" hidden>
+
+        <div class="field">
+          <label for="password">New password</label>
+          <div class="input-row">
+            <input id="password" name="password" type="password" required
+                   autocomplete="new-password" minlength="12" maxlength="128"
+                   passwordrules="minlength: 12; maxlength: 128;"
+                   aria-describedby="password-hint password-error">
+            <button type="button" class="toggle" data-toggle="password"
+                    aria-controls="password" aria-pressed="false">Show</button>
+          </div>
+          <p class="hint" id="password-hint">At least 12 characters. A short phrase works well.</p>
+          <p class="error" id="password-error" aria-live="polite"></p>
+        </div>
+
+        <div class="field">
+          <label for="confirm">Confirm new password</label>
+          <input id="confirm" name="confirm" type="password" required
+                 autocomplete="new-password" maxlength="128" aria-describedby="confirm-error">
+          <p class="error" id="confirm-error" aria-live="polite"></p>
+        </div>
+
+        <button type="submit" class="primary">Save new password</button>
+      </form>
+
+      <p class="divider"><span>or</span></p>
+      <button type="button" class="secondary" id="passkey-route">Sign in and add a new passkey</button>
+      <p class="status" id="status" role="status"></p>
+    </div>
+
+    <p class="footer"><a href="/recover" id="new-link" hidden>Request a new link</a></p>
+  </main>
+</body>
+</html>

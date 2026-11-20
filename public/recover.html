@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>Lost access?</title>
+  <link rel="stylesheet" href="/styles.css">
+  <script src="/recover.js" defer></script>
+</head>
+<body>
+  <main class="card">
+    <h1>Lost access?</h1>
+    <p class="subtitle">Forgot your password or lost your passkey? We'll email you a link to get back in.</p>
+
+    <form id="recover-form" novalidate>
+      <div class="field">
+        <label for="email">Your account's email</label>
+        <input id="email" name="email" type="email" required
+               autocomplete="email" inputmode="email" maxlength="254">
+      </div>
+      <button type="submit" class="primary">Send me a link</button>
+      <p class="status" id="status" role="status"></p>
+    </form>
+
+    <p class="footer"><a href="/signin">Back to sign in</a></p>
+  </main>
+</body>
+</html>

@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>Your account</title>
+  <link rel="stylesheet" href="/styles.css">
+  <script type="module" src="/account.js"></script>
+</head>
+<body>
+  <main class="card">
+    <h1>Your account</h1>
+    <p class="subtitle">Signed in as <strong id="username">…</strong></p>
+
+    <div class="notice notice-danger" id="deletion-notice" hidden>
+      <p><strong>Your account will be deleted on <span id="deletion-date"></span>.</strong>
+        After that, it and all of its information are gone for good.</p>
+      <button type="button" class="link-button" id="cancel-deletion">Cancel deletion and keep my account</button>
+    </div>
+
+    <dl class="details">
+      <dt>Email</dt>
+      <dd id="email">…</dd>
+      <dd><span class="badge" id="email-status"></span></dd>
+    </dl>
+
+    <div class="notice" id="verify-notice" hidden>
+      <p>Please confirm your email address. We'll only send account-recovery links to a confirmed address.</p>
+      <button type="button" class="link-button" id="resend">Send a new confirmation link</button>
+    </div>
+
+    <section class="section" aria-labelledby="passkeys-heading">
+      <h2 id="passkeys-heading">Passkeys</h2>
+      <p class="hint">Sign in with Face ID, Touch ID, a fingerprint or your device PIN instead of a password.</p>
+      <ul class="passkey-list" id="passkey-list"></ul>
+      <button type="button" class="secondary" id="add-passkey">Add a passkey</button>
+      <p class="hint" id="passkey-unsupported" hidden>This browser doesn't support passkeys.</p>
+      <p class="status" id="passkey-status" role="status"></p>
+    </section>
+
+    <button type="button" class="secondary" id="sign-out">Sign out</button>
+    <p class="status" id="status" role="status"></p>
+
+    <section class="section danger-zone" id="delete-section" aria-labelledby="delete-heading">
+      <h2 id="delete-heading">Delete account</h2>
+      <p class="hint">Permanently delete your account and all of its information.</p>
+      <button type="button" class="danger-button" id="delete-account">Delete account</button>
+    </section>
+  </main>
+
+  <dialog id="delete-dialog" aria-labelledby="delete-title" aria-describedby="delete-warning">
+    <form id="delete-form" novalidate>
+      <h2 id="delete-title">Delete your account?</h2>
+      <div class="warning" id="delete-warning">
+        <p><strong>This is permanent.</strong> Once your account is deleted, there is no way to recover it
+          or any of its information. Your username, email address, passkeys and sign-in history will all be erased.</p>
+        <p>Your account will be deleted 7 days from now, and you'll be signed out on every device.
+          Until then, you can sign in and cancel.</p>
+      </div>
+
+      <div class="field">
+        <label for="delete-username">To confirm, type your username: <strong id="delete-username-hint"></strong></label>
+        <input id="delete-username" type="text" autocomplete="off" autocapitalize="none" spellcheck="false" maxlength="30">
+      </div>
+
+      <div class="field" id="delete-password-field" hidden>
+        <label for="delete-password">Your password</label>
+        <input id="delete-password" type="password" autocomplete="current-password" maxlength="128">
+      </div>
+      <p class="hint" id="delete-passkey-hint" hidden>You'll be asked to confirm it's you with one of your passkeys.</p>
+
+      <p class="error" id="delete-error" role="alert"></p>
+
+      <div class="dialog-buttons">
+        <button type="button" class="secondary" id="delete-cancel">Cancel</button>
+        <button type="submit" class="danger-button solid" id="delete-confirm" disabled>Delete my account</button>
+      </div>
+    </form>
+  </dialog>
+</body>
+</html>
