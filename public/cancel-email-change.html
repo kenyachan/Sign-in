@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>Cancel email change</title>
+  <link rel="stylesheet" href="/styles.css">
+  <script src="/cancel-email-change.js" defer></script>
+</head>
+<body>
+  <main class="card">
+    <h1>Cancel email change</h1>
+    <p class="subtitle" id="message" role="status">Someone asked to change your account's sign-in email.
+      If it wasn't you, cancel it here.</p>
+    <!-- A button, not automatic: email apps that open links to scan them won't cancel anything. -->
+    <button type="button" class="danger-button solid" id="cancel">Cancel the change</button>
+    <a class="secondary button-link" id="next" href="/signin" hidden>Sign in</a>
+  </main>
+</body>
+</html>

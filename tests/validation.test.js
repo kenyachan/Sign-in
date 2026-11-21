@@ -1,20 +1,11 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { validateRegistration } from '../src/validation.js';
+import { checkNames, validateRegistration } from '../src/validation.js';
 
-const good = { username: 'kenya', email: 'kenya@example.com', password: 'correct horse battery' };
+const good = { firstName: 'Kenya', lastName: 'Chan', email: 'kenya@example.com', password: 'correct horse battery' };
 
 test('accepts a valid sign-up', () => {
   assert.deepEqual(validateRegistration(good), {});
-});
-
-test('usernames: 3–30 letters, numbers, dots, dashes, underscores', () => {
-  for (const username of ['ab', 'a'.repeat(31), 'has space', 'semi;colon', 'ünïcode', '', null, 42]) {
-    assert.ok(validateRegistration({ ...good, username }).username, `should reject ${JSON.stringify(username)}`);
-  }
-  for (const username of ['abc', 'a'.repeat(30), 'first.last', 'kenya_99', 'k-n']) {
-    assert.equal(validateRegistration({ ...good, username }).username, undefined, `should accept ${username}`);
-  }
 });
 
 test('emails need an @ and a dot, and at most 254 characters', () => {
@@ -31,12 +22,48 @@ test('passwords: 12–128 characters, counting emoji as one', () => {
   assert.equal(validateRegistration({ ...good, password: '🔒'.repeat(12) }).password, undefined);
 });
 
-test("passwords can't contain the username", () => {
-  assert.match(validateRegistration({ ...good, password: 'my-KENYA-password' }).password, /username/);
+test("passwords can't contain the email address", () => {
+  assert.match(validateRegistration({ ...good, password: 'my-KENYA-chan-pw' }).password, /name|email/);
+  assert.match(validateRegistration({ ...good, firstName: 'Mei', lastName: undefined, password: 'my-KENYA-password' }).password,
+    /email address/, 'the part before the @');
 });
 
 test('missing or wrong-type fields are rejected, not crashed on', () => {
   const errors = validateRegistration({});
-  assert.deepEqual(Object.keys(errors).sort(), ['email', 'password', 'username']);
+  assert.deepEqual(Object.keys(errors).sort(), ['email', 'firstName', 'password']);
   assert.ok(validateRegistration({ ...good, password: ['array'] }).password);
+});
+
+test('names: letters from any language, spaces, hyphens, apostrophes', () => {
+  for (const firstName of ["O'Brien", 'Nguyễn', 'José María', 'Jean-Luc', 'D’Angelo', 'J. R.', 'Zoë', '李', 'Ólafur']) {
+    assert.equal(validateRegistration({ ...good, firstName }).firstName, undefined, `should accept ${firstName}`);
+  }
+  for (const firstName of ['', '   ', 'a'.repeat(51), 'Kenya2', '<script>', 'evil.com/login', 'http://x.co',
+    'me@example.com', 'Kenya\u0000', 'Ken\u200bya', "'-.", null, 42, ['Kenya']]) {
+    assert.ok(validateRegistration({ ...good, firstName }).firstName, `should reject ${JSON.stringify(firstName)}`);
+  }
+});
+
+test('first name is required, last name is optional', () => {
+  assert.match(validateRegistration({ ...good, firstName: undefined }).firstName, /first name/);
+  assert.equal(validateRegistration({ ...good, lastName: undefined }).lastName, undefined);
+  assert.equal(validateRegistration({ ...good, lastName: '' }).lastName, undefined);
+  assert.ok(validateRegistration({ ...good, lastName: 'Chan3' }).lastName, 'a given last name is still checked');
+});
+
+test('names are tidied: trimmed, spaces squeezed, empty last name becomes null', () => {
+  assert.deepEqual(checkNames({ firstName: '  José   María ', lastName: '  ' }),
+    { firstName: 'José María', lastName: null, errors: {} });
+  // The same letter typed two different ways (é as one character, or e + accent) is stored the same way.
+  assert.equal(checkNames({ firstName: 'Jose\u0301' }).firstName, 'Jos\u00e9');
+  // Line breaks and tabs become ordinary spaces, so they can never reach an email.
+  assert.equal(checkNames({ firstName: 'Kenya\r\nMei\t' }).firstName, 'Kenya Mei');
+});
+
+test("passwords can't contain the first or last name", () => {
+  const user = { ...good, email: 'someone@example.com' };
+  assert.match(validateRegistration({ ...user, password: 'my-kenya-password' }).password, /name/);
+  assert.match(validateRegistration({ ...user, password: 'chan-the-man-1234' }).password, /name/);
+  // Very short names are ignored, or almost every password would be refused.
+  assert.equal(validateRegistration({ ...user, firstName: 'Al', password: 'always correct horse' }).password, undefined);
 });

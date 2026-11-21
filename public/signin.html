@@ -15,10 +15,10 @@
 
     <form id="signin-form" novalidate>
       <div class="field">
-        <label for="username">Username</label>
-        <input id="username" name="username" type="text" required
-               autocomplete="username webauthn" autocapitalize="none" spellcheck="false"
-               maxlength="30">
+        <label for="email">Email</label>
+        <input id="email" name="email" type="email" required
+               autocomplete="username webauthn" inputmode="email" autocapitalize="none" spellcheck="false"
+               maxlength="254">
       </div>
 
       <div class="field">
@@ -39,6 +39,19 @@
       <button type="button" class="secondary" id="passkey-button">Sign in with a passkey</button>
     </div>
     <p class="status" id="status" role="status"></p>
+
+    <details class="resend" id="resend">
+      <summary>Didn't get the confirmation email?</summary>
+      <form id="resend-form" novalidate>
+        <div class="field">
+          <label for="resend-email">Email</label>
+          <input id="resend-email" name="email" type="email" required
+                 autocomplete="email" inputmode="email" autocapitalize="none" spellcheck="false" maxlength="254">
+        </div>
+        <button type="submit" class="secondary">Send a new confirmation link</button>
+        <p class="status" id="resend-status" role="status"></p>
+      </form>
+    </details>
 
     <p class="footer"><a href="/recover">Forgot your password or lost your passkey?</a></p>
     <p class="footer footer-tight">New here? <a href="/signup">Create an account</a></p>

@@ -12,8 +12,9 @@ export async function startApp(env = {}) {
   const { db } = await import('../src/db.js');
   const limits = await import('../src/rate-limits.js');
   const { sentEmails } = await import('../src/mailer.js');
-  const { resendStore } = await import('../src/routes/email.js');
+  const resend = await import('../src/routes/email.js');
   const recovery = await import('../src/routes/recovery.js');
+  const account = await import('../src/routes/account.js');
 
   const server = createApp().listen(0, '127.0.0.1');   // port 0 = any free port
   await once(server, 'listening');
@@ -26,11 +27,13 @@ export async function startApp(env = {}) {
     newClient: (defaultHeaders) => new Client(base, defaultHeaders),
     // Forget everything the rate limiters have counted, so tests don't affect each other.
     resetRateLimits() {
-      for (const limiter of [limits.loginLimiter, limits.registerLimiter, limits.apiLimiter, recovery.recoveryNetworkLimiter]) {
+      for (const limiter of [limits.loginLimiter, limits.registerLimiter, limits.apiLimiter,
+        recovery.recoveryNetworkLimiter, resend.resendNetworkLimiter]) {
         limiter.resetKey('127.0.0.1');
       }
-      resendStore.resetAll();
+      resend.resendStore.resetAll();
       recovery.recoveryEmailStore.resetAll();
+      account.emailChangeStore.resetAll();
     },
     close: () => new Promise((resolve) => {
       server.closeAllConnections();
@@ -85,15 +88,28 @@ export class Client {
   }
 }
 
-export function signUp(client, overrides = {}) {
-  return client.post('/api/register', {
-    username: 'kenya',
-    email: 'kenya@example.com',
-    password: PASSWORD,
-    ...overrides,
-  });
+export const EMAIL = 'kenya@example.com';
+
+// Signs up through the API. By default it then confirms the address by using the
+// link from the confirmation email, as the person would, because unconfirmed
+// accounts can't sign in. Pass { confirm: false } to leave it unconfirmed.
+export async function signUp(client, overrides = {}, { confirm = true } = {}) {
+  const { sentEmails } = await import('../src/mailer.js');
+  const before = sentEmails.length;
+  const body = { firstName: 'Kenya', lastName: 'Chan', email: EMAIL, password: PASSWORD, ...overrides };
+  const res = await client.post('/api/register', body);
+
+  if (confirm && res.status === 201) {
+    const to = String(body.email).trim().toLowerCase();
+    const email = sentEmails.slice(before).find((m) => m.to === to && /\/verify-email#token=/.test(m.text));
+    if (email) {
+      const token = email.text.match(/verify-email#token=([A-Za-z0-9_-]+)/)[1];
+      await new Client(client.base, client.defaultHeaders).post('/api/verify-email', { token });
+    }
+  }
+  return res;
 }
 
-export function signIn(client, username = 'kenya', password = PASSWORD) {
-  return client.post('/api/login', { username, password });
+export function signIn(client, email = EMAIL, password = PASSWORD) {
+  return client.post('/api/login', { email, password });
 }

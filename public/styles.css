@@ -334,3 +334,19 @@ dialog h2 { margin: 0 0 14px; font-size: 1.15rem; font-weight: 600; }
 #delete-error { margin: 0 0 4px; }
 .dialog-buttons { display: flex; gap: 12px; margin-top: 20px; }
 .dialog-buttons > * { flex: 1; }
+
+/* First and last name side by side (stacked on narrow screens). */
+.field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; }
+.field-row .field { min-width: 0; }
+@media (max-width: 420px) { .field-row { grid-template-columns: 1fr; } }
+.optional { color: var(--muted); font-weight: normal; }
+
+/* "Your name" on the account page. */
+.name-view { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.name-view p { margin: 0; overflow-wrap: anywhere; }
+
+/* "Didn't get the confirmation email?" on the sign-in page. */
+.resend { margin-top: 20px; font-size: 0.9rem; }
+.resend summary { cursor: pointer; color: var(--muted); }
+.resend summary:hover { color: var(--text); }
+.resend form { margin-top: 12px; }

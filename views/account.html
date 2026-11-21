@@ -11,7 +11,7 @@
 <body>
   <main class="card">
     <h1>Your account</h1>
-    <p class="subtitle">Signed in as <strong id="username">…</strong></p>
+    <p class="subtitle">Signed in as <strong id="full-name">…</strong></p>
 
     <div class="notice notice-danger" id="deletion-notice" hidden>
       <p><strong>Your account will be deleted on <span id="deletion-date"></span>.</strong>
@@ -19,16 +19,52 @@
       <button type="button" class="link-button" id="cancel-deletion">Cancel deletion and keep my account</button>
     </div>
 
-    <dl class="details">
-      <dt>Email</dt>
-      <dd id="email">…</dd>
-      <dd><span class="badge" id="email-status"></span></dd>
-    </dl>
+    <section class="section" aria-labelledby="name-heading">
+      <h2 id="name-heading">Your name</h2>
+      <div id="name-view" class="name-view">
+        <p id="name-display">…</p>
+        <button type="button" class="link-button" id="edit-name">Edit</button>
+      </div>
+      <form id="name-form" class="name-form" novalidate hidden>
+        <div class="field-row">
+          <div class="field">
+            <label for="first-name">First name</label>
+            <input id="first-name" name="firstName" type="text" required autocomplete="given-name" maxlength="50"
+                   aria-describedby="first-name-error">
+            <p class="error" id="first-name-error" aria-live="polite"></p>
+          </div>
+          <div class="field">
+            <label for="last-name">Last name <span class="optional">(optional)</span></label>
+            <input id="last-name" name="lastName" type="text" autocomplete="family-name" maxlength="50"
+                   aria-describedby="last-name-error">
+            <p class="error" id="last-name-error" aria-live="polite"></p>
+          </div>
+        </div>
+        <p class="hint">We use your first name when we email you.</p>
+        <div class="rename-buttons">
+          <button type="submit" class="primary small" id="save-name">Save</button>
+          <button type="button" class="link-button" id="cancel-name">Cancel</button>
+        </div>
+      </form>
+      <p class="status" id="name-status" role="status"></p>
+    </section>
 
-    <div class="notice" id="verify-notice" hidden>
-      <p>Please confirm your email address. We'll only send account-recovery links to a confirmed address.</p>
-      <button type="button" class="link-button" id="resend">Send a new confirmation link</button>
-    </div>
+    <section class="section" aria-labelledby="email-heading">
+      <h2 id="email-heading">Email</h2>
+      <dl class="details">
+        <dt>You sign in with</dt>
+        <dd id="email">…</dd>
+        <dd><span class="badge" id="email-status"></span></dd>
+      </dl>
+      <div class="notice" id="pending-email-notice" hidden>
+        <p>Waiting for you to confirm <strong id="pending-email"></strong>. Use the link we sent to that address.
+          Until then, keep signing in with your current email.</p>
+        <button type="button" class="link-button" id="resend-email-change">Send the link again</button>
+        <button type="button" class="link-button danger" id="cancel-email-change">Cancel the change</button>
+      </div>
+      <button type="button" class="secondary" id="change-email">Change email</button>
+      <p class="status" id="email-change-status" role="status"></p>
+    </section>
 
     <section class="section" aria-labelledby="passkeys-heading">
       <h2 id="passkeys-heading">Passkeys</h2>
@@ -49,19 +85,47 @@
     </section>
   </main>
 
+  <dialog id="email-dialog" aria-labelledby="email-dialog-title">
+    <form id="email-form" novalidate>
+      <h2 id="email-dialog-title">Change your email</h2>
+      <p class="hint">We'll send a link to the new address. Your email only changes once you use it,
+        and then you'll be signed out on every device.</p>
+
+      <div class="field">
+        <label for="new-email">New email address</label>
+        <input id="new-email" name="newEmail" type="email" required autocomplete="email" inputmode="email"
+               autocapitalize="none" spellcheck="false" maxlength="254" aria-describedby="new-email-error">
+        <p class="error" id="new-email-error" aria-live="polite"></p>
+      </div>
+
+      <div class="field" id="email-password-field" hidden>
+        <label for="email-password">Your password</label>
+        <input id="email-password" type="password" autocomplete="current-password" maxlength="128">
+      </div>
+      <p class="hint" id="email-passkey-hint" hidden>You'll be asked to confirm it's you with one of your passkeys.</p>
+
+      <p class="error" id="email-error" role="alert"></p>
+
+      <div class="dialog-buttons">
+        <button type="button" class="secondary" id="email-cancel">Cancel</button>
+        <button type="submit" class="primary" id="email-submit">Send confirmation link</button>
+      </div>
+    </form>
+  </dialog>
+
   <dialog id="delete-dialog" aria-labelledby="delete-title" aria-describedby="delete-warning">
     <form id="delete-form" novalidate>
       <h2 id="delete-title">Delete your account?</h2>
       <div class="warning" id="delete-warning">
         <p><strong>This is permanent.</strong> Once your account is deleted, there is no way to recover it
-          or any of its information. Your username, email address, passkeys and sign-in history will all be erased.</p>
+          or any of its information. Your name, email address, passkeys and sign-in history will all be erased.</p>
         <p>Your account will be deleted 7 days from now, and you'll be signed out on every device.
           Until then, you can sign in and cancel.</p>
       </div>
 
       <div class="field">
-        <label for="delete-username">To confirm, type your username: <strong id="delete-username-hint"></strong></label>
-        <input id="delete-username" type="text" autocomplete="off" autocapitalize="none" spellcheck="false" maxlength="30">
+        <label for="delete-email">To confirm, type your email address: <strong id="delete-email-hint"></strong></label>
+        <input id="delete-email" type="email" inputmode="email" autocomplete="off" autocapitalize="none" spellcheck="false" maxlength="254">
       </div>
 
       <div class="field" id="delete-password-field" hidden>
