@@ -1,6 +1,6 @@
 import { after, before, beforeEach, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { signIn, signUp, startApp } from './helpers.js';
+import { EMAIL, signIn, signUp, startApp } from './helpers.js';
 import { SoftPasskey } from './authenticator.js';
 
 let app;
@@ -12,9 +12,9 @@ beforeEach(async () => {
   await signUp(app.newClient());
 });
 
-async function signedIn(username = 'kenya') {
+async function signedIn(email = EMAIL) {
   const client = app.newClient({ 'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)' });
-  await signIn(client, username);
+  await signIn(client, email);
   return client;
 }
 
@@ -36,9 +36,10 @@ test('registration options ask for a real passkey for this site', async () => {
   const client = await signedIn();
   const { data } = await client.post('/api/passkeys/register/options');
   assert.equal(data.rp.id, 'localhost');
-  assert.equal(data.user.name, 'kenya');
+  assert.equal(data.user.name, EMAIL, 'the device shows the email...');
+  assert.equal(data.user.displayName, 'Kenya Chan', '...and the name');
   const { webauthn_user_id } = app.db.prepare('SELECT webauthn_user_id FROM users').get();
-  assert.equal(data.user.id, webauthn_user_id, 'random ID, not the username');
+  assert.equal(data.user.id, webauthn_user_id, 'random ID, not the email');
   assert.equal(data.authenticatorSelection.residentKey, 'required');
   assert.equal(data.authenticatorSelection.userVerification, 'required');
   assert.ok(data.challenge.length >= 43, 'long random challenge');
@@ -97,9 +98,9 @@ test('challenges expire after 5 minutes', async () => {
 });
 
 test("you can't finish adding a passkey with someone else's challenge", async () => {
-  await signUp(app.newClient(), { username: 'other', email: 'other@example.com' });
-  const victim = await signedIn('kenya');
-  const attacker = await signedIn('other');
+  await signUp(app.newClient(), { firstName: 'Olly', email: 'other@example.com' });
+  const victim = await signedIn(EMAIL);
+  const attacker = await signedIn('other@example.com');
   const { data: options } = await victim.post('/api/passkeys/register/options');
   const res = await attacker.post('/api/passkeys/register/verify', { response: new SoftPasskey().register(options) });
   assert.equal(res.status, 400);
@@ -122,19 +123,28 @@ test('broken registration responses are refused, not crashed on', async () => {
 
 // --- Signing in with a passkey --------------------------------------------
 
+test('an account whose email is not confirmed cannot sign in with a passkey either', async () => {
+  const { passkey } = await addPasskey(await signedIn());
+  app.db.exec('UPDATE users SET email_verified_at = NULL');   // can't normally happen: a safety net
+  const { res } = await passkeySignIn(passkey);
+  assert.equal(res.status, 403);
+  assert.equal(res.data.error, 'unconfirmed');
+  assert.equal(res.setCookies.length, 0, 'no session');
+});
+
 test('signing in with a passkey starts a session', async () => {
   const { passkey } = await addPasskey(await signedIn());
   const { res, client } = await passkeySignIn(passkey);
   assert.equal(res.status, 200);
-  assert.equal(res.data.username, 'kenya');
-  assert.equal((await client.get('/api/me')).data.username, 'kenya');
+  assert.equal(res.data.firstName, 'Kenya');
+  assert.equal((await client.get('/api/me')).data.email, EMAIL);
 
   const row = app.db.prepare('SELECT sign_count, last_used_at FROM passkeys').get();
   assert.equal(row.sign_count, 1);
   assert.ok(row.last_used_at);
 });
 
-test('login options let the device pick the passkey (no username needed)', async () => {
+test('login options let the device pick the passkey (no email needed)', async () => {
   const { data } = await app.newClient().post('/api/passkeys/login/options');
   assert.equal(data.rpId, 'localhost');
   assert.equal(data.userVerification, 'required');
@@ -143,7 +153,7 @@ test('login options let the device pick the passkey (no username needed)', async
 
 test('passkey sign-in still works while the password is locked out', async () => {
   const { passkey } = await addPasskey(await signedIn());
-  for (let i = 0; i < 5; i++) await signIn(app.newClient(), 'kenya', 'wrong password!');
+  for (let i = 0; i < 5; i++) await signIn(app.newClient(), EMAIL, 'wrong password!');
   assert.equal((await signIn(app.newClient())).status, 429, 'password sign-in is locked');
   assert.equal((await passkeySignIn(passkey)).res.status, 200, 'passkey still works');
 });
@@ -216,9 +226,9 @@ test('removing a passkey means it can no longer sign in', async () => {
 });
 
 test("you can't remove someone else's passkey", async () => {
-  const { res: added } = await addPasskey(await signedIn('kenya'));
-  await signUp(app.newClient(), { username: 'other', email: 'other@example.com' });
-  const other = await signedIn('other');
+  const { res: added } = await addPasskey(await signedIn(EMAIL));
+  await signUp(app.newClient(), { firstName: 'Olly', email: 'other@example.com' });
+  const other = await signedIn('other@example.com');
   assert.equal((await other.request('DELETE', `/api/passkeys/${added.data.id}`)).status, 404);
   assert.equal(app.db.prepare('SELECT COUNT(*) AS n FROM passkeys').get().n, 1);
 });
@@ -285,9 +295,9 @@ test('names are stored as plain text, never run as HTML', async () => {
 });
 
 test("you can't rename someone else's passkey", async () => {
-  const { res: added } = await addPasskey(await signedIn('kenya'));
-  await signUp(app.newClient(), { username: 'other', email: 'other@example.com' });
-  const other = await signedIn('other');
+  const { res: added } = await addPasskey(await signedIn(EMAIL));
+  await signUp(app.newClient(), { firstName: 'Olly', email: 'other@example.com' });
+  const other = await signedIn('other@example.com');
   assert.equal((await rename(other, added.data.id, 'mine now')).status, 404);
   assert.notEqual(app.db.prepare('SELECT nickname FROM passkeys').get().nickname, 'mine now');
 });

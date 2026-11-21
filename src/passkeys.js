@@ -43,10 +43,10 @@ export function deleteOldChallenges() {
 }
 
 // --- Users -----------------------------------------------------------------
-const getUserRow = db.prepare('SELECT id, username, webauthn_user_id, password_hash FROM users WHERE id = ?');
+const getUserRow = db.prepare('SELECT id, email, first_name, last_name, webauthn_user_id, password_hash FROM users WHERE id = ?');
 const setWebauthnId = db.prepare('UPDATE users SET webauthn_user_id = ? WHERE id = ?');
 
-// Every user gets a random passkey ID; it's what the device stores instead of the username.
+// Every user gets a random passkey ID; it's what the device stores instead of anything personal.
 export function getPasskeyUser(userId) {
   const user = getUserRow.get(userId);
   if (user && !user.webauthn_user_id) {
@@ -66,7 +66,7 @@ const insertPasskey = db.prepare(`
   VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 `);
 const findByCredentialId = db.prepare(`
-  SELECT p.id, p.user_id, p.credential_id, p.public_key, p.sign_count, p.transports, u.username, u.webauthn_user_id
+  SELECT p.id, p.user_id, p.credential_id, p.public_key, p.sign_count, p.transports, u.first_name, u.email_verified_at, u.webauthn_user_id
   FROM passkeys p JOIN users u ON u.id = p.user_id
   WHERE p.credential_id = ?
 `);

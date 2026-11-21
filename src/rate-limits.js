@@ -1,5 +1,5 @@
 // Rate limits per IP address: they slow down anyone hammering the server,
-// whichever usernames they try. (lockout.js handles attacks on one username.)
+// whichever email addresses they try. (lockout.js handles attacks on one address.)
 
 import rateLimit from 'express-rate-limit';
 

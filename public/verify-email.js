@@ -22,8 +22,8 @@ async function verify() {
     });
     const data = await response.json().catch(() => ({}));
     message.textContent = response.ok
-      ? (data.message ?? 'Your email address is confirmed.')
-      : `${data.error ?? 'Something went wrong.'} You can ask for a new link from your account page.`;
+      ? (data.message ?? 'Your email address is confirmed. You can now sign in.')
+      : `${data.error ?? 'Something went wrong.'} You can ask for a new link on the sign-in page.`;
     message.className = `subtitle ${response.ok ? 'success-text' : 'error-text'}`;
   } catch {
     message.textContent = "Couldn't reach the server. Check your connection and reload this page.";

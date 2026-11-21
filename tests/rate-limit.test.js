@@ -14,12 +14,12 @@ beforeEach(() => {
 });
 
 test('sign-in: 20 failures per 15 minutes from one network, then blocked', async () => {
-  // A different username each time, so the per-username lockout never kicks in.
+  // A different address each time, so the per-address lockout never kicks in.
   for (let i = 1; i <= 20; i++) {
-    const res = await signIn(app.newClient(), `user${i}`, 'wrong password!');
+    const res = await signIn(app.newClient(), `user${i}@example.com`, 'wrong password!');
     assert.equal(res.status, 401, `attempt ${i} is allowed`);
   }
-  const blocked = await signIn(app.newClient(), 'user21', 'wrong password!');
+  const blocked = await signIn(app.newClient(), 'user21@example.com', 'wrong password!');
   assert.equal(blocked.status, 429);
   assert.match(blocked.data.error, /from your network/);
   assert.ok(blocked.headers.get('ratelimit'), 'tells the client its limit');
@@ -36,10 +36,10 @@ test("sign-in: successful sign-ins don't use up the limit", async () => {
 
 test('sign-up: 10 per hour from one network', async () => {
   for (let i = 1; i <= 10; i++) {
-    const res = await signUp(app.newClient(), { username: `new${i}`, email: `new${i}@example.com` });
+    const res = await signUp(app.newClient(), { firstName: 'Olly', email: `new${i}@example.com` });
     assert.equal(res.status, 201, `sign-up ${i} is allowed`);
   }
-  const blocked = await signUp(app.newClient(), { username: 'new11', email: 'new11@example.com' });
+  const blocked = await signUp(app.newClient(), { firstName: 'Olly', email: 'new11@example.com' });
   assert.equal(blocked.status, 429);
   assert.match(blocked.data.error, /sign-ups/);
 });

@@ -24,7 +24,8 @@ const insertSession = db.prepare(`
 `);
 const findSession = db.prepare(`
   SELECT s.id, s.expires_at, s.last_seen_at,
-         u.id AS user_id, u.username, u.email, u.email_verified_at, u.delete_after,
+         u.id AS user_id, u.first_name, u.last_name, u.email, u.email_verified_at, u.pending_email,
+         u.webauthn_user_id, u.delete_after,
          u.password_hash IS NOT NULL AS has_password
   FROM sessions s JOIN users u ON u.id = s.user_id
   WHERE s.id = ?
@@ -104,8 +105,11 @@ export function loadSession(req, res, next) {
   if (now - lastSeen > TOUCH_EVERY_MS) touchSession.run(iso(now), id);
   req.user = {
     id: row.user_id,
-    username: row.username,
+    firstName: row.first_name,
+    lastName: row.last_name,             // null if they didn't give one
     email: row.email,
+    pendingEmail: row.pending_email,         // a new address waiting for confirmation, or null
+    webauthnUserId: row.webauthn_user_id,    // the random ID passkeys know this account by
     emailVerified: row.email_verified_at !== null,
     hasPassword: row.has_password === 1,
     deleteAfter: row.delete_after,             // null unless the account is scheduled for deletion

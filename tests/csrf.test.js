@@ -58,7 +58,7 @@ test('the API only accepts JSON (what an HTML form on another site cannot send)'
   const client = app.newClient();
   for (const type of ['text/plain', 'application/x-www-form-urlencoded', 'multipart/form-data; boundary=x']) {
     const res = await client.request('POST', '/api/login', {
-      body: 'username=kenya&password=x', headers: { 'content-type': type },
+      body: 'email=kenya%40example.com&password=x', headers: { 'content-type': type },
     });
     assert.equal(res.status, 415, type);
   }

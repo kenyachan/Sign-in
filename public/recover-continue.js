@@ -45,8 +45,8 @@ async function start() {
       linkProblem('This link is invalid, already used, or expired.');
       return;
     }
-    message.textContent = `Choose how to get back into ${data.username}'s account.`;
-    form.elements.username.value = data.username;
+    message.textContent = `Choose how to get back into your account, ${data.firstName}.`;
+    form.elements.email.value = data.email;
     choices.hidden = false;
     form.elements.password.focus();
   } catch {

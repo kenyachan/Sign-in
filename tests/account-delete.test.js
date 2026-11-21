@@ -1,6 +1,6 @@
 import { after, before, beforeEach, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { PASSWORD, signIn, signUp, startApp } from './helpers.js';
+import { EMAIL, PASSWORD, signIn, signUp, startApp } from './helpers.js';
 import { SoftPasskey } from './authenticator.js';
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -18,13 +18,13 @@ beforeEach(async () => {
   app.sentEmails.length = 0;
 });
 
-async function signedIn(username = 'kenya') {
+async function signedIn(email = EMAIL) {
   const client = app.newClient();
-  await signIn(client, username);
+  await signIn(client, email);
   return client;
 }
 
-const askToDelete = (client, body = { username: 'kenya', password: PASSWORD }) =>
+const askToDelete = (client, body = { email: EMAIL, password: PASSWORD }) =>
   client.post('/api/account/deletion', body);
 
 async function addPasskey(client) {
@@ -34,7 +34,7 @@ async function addPasskey(client) {
   return passkey;
 }
 
-const userRow = () => app.db.prepare('SELECT id, delete_after FROM users WHERE username = ?').get('kenya');
+const userRow = () => app.db.prepare('SELECT id, delete_after FROM users WHERE email = ?').get(EMAIL);
 const count = (table, userId) => app.db.prepare(`SELECT COUNT(*) AS n FROM ${table} WHERE user_id = ?`).get(userId).n;
 
 // --- Asking to delete -------------------------------------------------------
@@ -87,7 +87,7 @@ test('after 7 days the account and everything in it is erased for good', async (
   const { id } = userRow();
   assert.equal(count('email_tokens', id), 1, 'the sign-up confirmation link');
   await askToDelete(client);
-  await signIn(app.newClient(), 'kenya', 'a wrong password');   // leaves a failed-attempt record
+  await signIn(app.newClient(), EMAIL, 'a wrong password');   // leaves a failed-attempt record
   assert.equal(app.db.prepare('SELECT COUNT(*) AS n FROM login_attempts').get().n, 1);
 
   assert.equal(purgeDueAccounts(Date.now() + 6 * DAY), 0, 'not before the 7 days are up');
@@ -103,14 +103,14 @@ test('after 7 days the account and everything in it is erased for good', async (
   assert.equal(app.sentEmails.at(-1).to, 'kenya@example.com');
 
   assert.equal((await signIn(app.newClient())).status, 401, "the old password doesn't work");
-  assert.equal((await signUp(app.newClient())).status, 201, 'the username and email are free again');
+  assert.equal((await signUp(app.newClient())).status, 201, 'the email address is free again');
 });
 
 // --- Confirming it's really you ---------------------------------------------
 
 test('a wrong password is refused and nothing changes', async () => {
   const client = await signedIn();
-  const res = await askToDelete(client, { username: 'kenya', password: 'not my password' });
+  const res = await askToDelete(client, { email: EMAIL, password: 'not my password' });
   assert.equal(res.status, 401);
   assert.equal(res.data.error, 'Incorrect password.');
   assert.equal(userRow().delete_after, null);
@@ -119,27 +119,28 @@ test('a wrong password is refused and nothing changes', async () => {
 });
 
 test('a missing password is refused', async () => {
-  const res = await askToDelete(await signedIn(), { username: 'kenya' });
+  const res = await askToDelete(await signedIn(), { email: EMAIL });
   assert.equal(res.status, 400);
   assert.equal(userRow().delete_after, null);
 });
 
-test('the username must be typed to confirm', async () => {
+test('the email address must be typed to confirm', async () => {
   const client = await signedIn();
-  for (const username of ['', 'someone', undefined, ['kenya']]) {
-    const res = await askToDelete(client, { username, password: PASSWORD });
+  for (const email of ['', 'kenya', 'someone@example.com', undefined, [EMAIL]]) {
+    const res = await askToDelete(client, { email, password: PASSWORD });
     assert.equal(res.status, 400);
+    assert.equal(userRow().delete_after, null);
   }
-  assert.equal((await askToDelete(client, { username: ' KENYA ', password: PASSWORD })).status, 200,
+  assert.equal((await askToDelete(client, { email: ' KENYA@Example.com ', password: PASSWORD })).status, 200,
     'case and spaces are ignored, as at sign-in');
 });
 
 test('wrong passwords count towards the same lockout as signing in', async () => {
   const client = await signedIn();
   for (let i = 0; i < 4; i++) {
-    assert.equal((await askToDelete(client, { username: 'kenya', password: `wrong ${i}` })).status, 401);
+    assert.equal((await askToDelete(client, { email: EMAIL, password: `wrong ${i}` })).status, 401);
   }
-  const locked = await askToDelete(client, { username: 'kenya', password: 'wrong 5' });
+  const locked = await askToDelete(client, { email: EMAIL, password: 'wrong 5' });
   assert.equal(locked.status, 429);
   assert.ok(locked.headers.get('retry-after'));
   assert.equal((await askToDelete(client)).status, 429, 'even the right password waits');
@@ -155,7 +156,7 @@ test('you must be signed in', async () => {
 
 test('requests from other websites are blocked (CSRF)', async () => {
   const client = await signedIn();
-  const res = await client.post('/api/account/deletion', { username: 'kenya', password: PASSWORD }, {
+  const res = await client.post('/api/account/deletion', { email: EMAIL, password: PASSWORD }, {
     headers: { 'sec-fetch-site': 'cross-site' },
   });
   assert.equal(res.status, 403);
@@ -167,7 +168,7 @@ test('requests from other websites are blocked (CSRF)', async () => {
 async function passkeyOnly() {
   const client = await signedIn();
   const passkey = await addPasskey(client);
-  app.db.exec("UPDATE users SET password_hash = NULL WHERE username = 'kenya'");
+  app.db.exec("UPDATE users SET password_hash = NULL WHERE email = 'kenya@example.com'");
   return { client, passkey };
 }
 
@@ -179,24 +180,24 @@ test('an account without a password confirms with a passkey', async () => {
   assert.deepEqual(options.allowCredentials.map((c) => c.id), [passkey.id], 'only your own passkeys');
   assert.equal(options.userVerification, 'required');
 
-  const res = await askToDelete(client, { username: 'kenya', passkey: passkey.authenticate(options) });
+  const res = await askToDelete(client, { email: EMAIL, passkey: passkey.authenticate(options) });
   assert.equal(res.status, 200);
   assert.ok(userRow().delete_after);
 });
 
 test("an account without a password can't skip the check", async () => {
   const { client } = await passkeyOnly();
-  assert.equal((await askToDelete(client, { username: 'kenya', password: PASSWORD })).status, 400);
+  assert.equal((await askToDelete(client, { email: EMAIL, password: PASSWORD })).status, 400);
   assert.equal(userRow().delete_after, null);
 });
 
 test("someone else's passkey can't confirm", async () => {
   const { client } = await passkeyOnly();
-  await signUp(app.newClient(), { username: 'other', email: 'other@example.com' });
-  const otherPasskey = await addPasskey(await signedIn('other'));
+  await signUp(app.newClient(), { firstName: 'Olly', email: 'other@example.com' });
+  const otherPasskey = await addPasskey(await signedIn('other@example.com'));
 
   const { data: options } = await client.post('/api/account/confirm-options');
-  const res = await askToDelete(client, { username: 'kenya', passkey: otherPasskey.authenticate(options) });
+  const res = await askToDelete(client, { email: EMAIL, passkey: otherPasskey.authenticate(options) });
   assert.equal(res.status, 401);
   assert.equal(userRow().delete_after, null);
 });
@@ -204,21 +205,21 @@ test("someone else's passkey can't confirm", async () => {
 test('a sign-in challenge or a used challenge is refused', async () => {
   const { client, passkey } = await passkeyOnly();
   const { data: loginOptions } = await client.post('/api/passkeys/login/options');
-  const fromLogin = await askToDelete(client, { username: 'kenya', passkey: passkey.authenticate(loginOptions) });
+  const fromLogin = await askToDelete(client, { email: EMAIL, passkey: passkey.authenticate(loginOptions) });
   assert.equal(fromLogin.status, 400, 'a sign-in challenge is for signing in only');
 
   const { data: options } = await client.post('/api/account/confirm-options');
   const response = passkey.authenticate(options);
-  // Spend the challenge with a wrong username first: it still can't be used again.
-  await askToDelete(client, { username: 'kenya', passkey: { ...response, id: 'nope' } });
-  assert.equal((await askToDelete(client, { username: 'kenya', passkey: response })).status, 400);
+  // Spend the challenge with a wrong passkey first: it still can't be used again.
+  await askToDelete(client, { email: EMAIL, passkey: { ...response, id: 'nope' } });
+  assert.equal((await askToDelete(client, { email: EMAIL, passkey: response })).status, 400);
   assert.equal(userRow().delete_after, null);
 });
 
 test('broken passkey responses are refused, not crashed on', async () => {
   const { client } = await passkeyOnly();
   for (const passkey of [null, 'x', 42, {}, { response: {} }]) {
-    const res = await askToDelete(client, { username: 'kenya', passkey });
+    const res = await askToDelete(client, { email: EMAIL, passkey });
     assert.ok([400, 401].includes(res.status), `got ${res.status}`);
   }
   assert.equal(userRow().delete_after, null);

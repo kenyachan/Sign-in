@@ -1,7 +1,7 @@
 import { after, before, beforeEach, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { signIn, signUp, startApp } from './helpers.js';
+import { EMAIL, signIn, signUp, startApp } from './helpers.js';
 
 let app;
 before(async () => {
@@ -20,7 +20,7 @@ test('signing in sets a secure session cookie', async () => {
   const client = app.newClient();
   const res = await signIn(client);
   assert.equal(res.status, 200);
-  assert.equal(res.data.username, 'kenya');
+  assert.equal(res.data.firstName, 'Kenya');
 
   const cookie = res.setCookies.find((c) => c.startsWith('sid='));
   assert.ok(cookie, 'sets the sid cookie');
@@ -40,24 +40,24 @@ test('the database stores only a hash of the session token', async () => {
   assert.ok(!ids.includes(token));
 });
 
-test('usernames are not case-sensitive at sign-in', async () => {
-  assert.equal((await signIn(app.newClient(), 'KENYA')).status, 200);
+test('email addresses are not case-sensitive at sign-in, and spaces are ignored', async () => {
+  assert.equal((await signIn(app.newClient(), '  KENYA@Example.COM ')).status, 200);
 });
 
-test("wrong password and unknown username get exactly the same reply", async () => {
-  const wrongPassword = await signIn(app.newClient(), 'kenya', 'not the password');
-  const noSuchUser = await signIn(app.newClient(), 'nobody', 'not the password');
+test("wrong password and unknown email get exactly the same reply", async () => {
+  const wrongPassword = await signIn(app.newClient(), EMAIL, 'not the password');
+  const noSuchUser = await signIn(app.newClient(), 'nobody@example.com', 'not the password');
   assert.equal(wrongPassword.status, 401);
   assert.equal(noSuchUser.status, 401);
   assert.deepEqual(wrongPassword.data, noSuchUser.data);
   assert.equal(wrongPassword.setCookies.length, 0, 'no session for a failed sign-in');
 });
 
-test('missing username or password is a 400, not a crash', async () => {
+test('missing email or password is a 400, not a crash', async () => {
   const client = app.newClient();
   assert.equal((await client.post('/api/login', {})).status, 400);
-  assert.equal((await client.post('/api/login', { username: 'kenya' })).status, 400);
-  assert.equal((await client.post('/api/login', { username: ['kenya'], password: 5 })).status, 400);
+  assert.equal((await client.post('/api/login', { email: EMAIL })).status, 400);
+  assert.equal((await client.post('/api/login', { email: [EMAIL], password: 5 })).status, 400);
 });
 
 test('/api/me and /account need a session', async () => {
@@ -71,7 +71,9 @@ test('/api/me and /account need a session', async () => {
   const me = await client.get('/api/me');
   assert.equal(me.status, 200);
   assert.deepEqual(me.data, {
-    username: 'kenya', email: 'kenya@example.com', emailVerified: false, hasPassword: true, deleteAfter: null,
+    firstName: 'Kenya', lastName: 'Chan', email: 'kenya@example.com', pendingEmail: null,
+    webauthnUserId: app.db.prepare('SELECT webauthn_user_id FROM users').get().webauthn_user_id,
+    emailVerified: true, hasPassword: true, deleteAfter: null,
   });
   assert.equal(me.headers.get('cache-control'), 'no-store');
 

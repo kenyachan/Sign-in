@@ -8,14 +8,16 @@ import { deleteExpiredSessions } from './sessions.js';
 import { deleteOldAttempts } from './lockout.js';
 import { deleteOldEmailTokens } from './email-tokens.js';
 import { deleteOldChallenges } from './passkeys.js';
-import { purgeDueAccounts } from './account-deletion.js';
+import { deleteUnconfirmedAccounts, purgeDueAccounts } from './account-deletion.js';
 
 const app = createApp();
 
 // Tidy up old sessions, failed-attempt records and email links now and every hour,
-// and erase accounts whose 7-day deletion grace period has ended.
+// erase accounts whose 7-day deletion grace period has ended, and delete
+// sign-ups that still haven't confirmed their email after 7 days.
 function cleanUp() {
   purgeDueAccounts();
+  deleteUnconfirmedAccounts();
   deleteExpiredSessions();
   deleteOldAttempts();
   deleteOldEmailTokens();

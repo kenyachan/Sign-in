@@ -4,7 +4,7 @@
 const form = document.getElementById('signup-form');
 const submit = form.querySelector('button[type="submit"]');
 const status = document.getElementById('status');
-const fields = ['username', 'email', 'password', 'confirm'];
+const fields = ['firstName', 'lastName', 'email', 'password', 'confirm'];
 
 function setError(name, message) {
   const input = form.elements[name];
@@ -18,11 +18,22 @@ function clearErrors() {
   status.className = 'status';
 }
 
+// The same name rules as the server: letters from any language, spaces, hyphens,
+// apostrophes and full stops.
+const NAME_PATTERN = /^[\p{L}\p{M} '’.-]+$/u;
+function nameError(name, required, label) {
+  if (name === '') return required ? `Enter your ${label}.` : null;
+  if ([...name].length > 50) return 'Use at most 50 characters.';
+  if (!NAME_PATTERN.test(name) || !/\p{L}/u.test(name)) return 'Use letters, spaces, hyphens and apostrophes only.';
+  return null;
+}
+
 function checkInBrowser(values) {
   const errors = {};
-  if (!/^[A-Za-z0-9_.-]{3,30}$/.test(values.username)) {
-    errors.username = 'Use 3–30 letters, numbers, dots, dashes or underscores.';
-  }
+  const first = nameError(values.firstName, true, 'first name');
+  if (first) errors.firstName = first;
+  const last = nameError(values.lastName, false, 'last name');
+  if (last) errors.lastName = last;
   if (!form.elements.email.checkValidity() || values.email === '') {
     errors.email = 'Enter a valid email address.';
   }
@@ -56,7 +67,8 @@ form.addEventListener('submit', async (event) => {
   clearErrors();
 
   const values = Object.fromEntries(fields.map((name) => [name, form.elements[name].value]));
-  values.username = values.username.trim();
+  values.firstName = values.firstName.replace(/\s+/g, ' ').trim();
+  values.lastName = values.lastName.replace(/\s+/g, ' ').trim();
   values.email = values.email.trim();
 
   const errors = checkInBrowser(values);
@@ -74,7 +86,8 @@ form.addEventListener('submit', async (event) => {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        username: values.username,
+        firstName: values.firstName,
+        lastName: values.lastName,
         email: values.email,
         password: values.password,
       }),

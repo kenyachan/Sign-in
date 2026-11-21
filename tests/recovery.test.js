@@ -1,7 +1,7 @@
 import { after, before, beforeEach, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { PASSWORD, signIn, signUp, startApp } from './helpers.js';
+import { EMAIL, PASSWORD, signIn, signUp, startApp } from './helpers.js';
 import { SoftPasskey } from './authenticator.js';
 
 const NEW_PASSWORD = 'a brand new passphrase';
@@ -51,11 +51,14 @@ test("the reply is the same whether or not there's an account", async () => {
   assert.equal(app.sentEmails.length, 1, 'but only the real account gets an email');
 });
 
-test('no link for an email address that was never confirmed', async () => {
+test('an address that was never confirmed gets a new confirmation link, not a recovery link', async () => {
   app.db.exec('UPDATE users SET email_verified_at = NULL');
   const res = await requestLink();
   assert.equal(res.status, 200, 'same reply as always');
-  assert.equal(app.sentEmails.length, 0);
+  assert.equal(app.sentEmails.length, 1);
+  assert.equal(app.sentEmails[0].subject, 'Confirm your email address');
+  assert.match(app.sentEmails[0].text, /\/verify-email#token=/);
+  assert.equal(app.db.prepare("SELECT COUNT(*) AS n FROM email_tokens WHERE purpose = 'recovery'").get().n, 0);
 });
 
 test('an invalid email address gets a 400', async () => {
@@ -99,7 +102,7 @@ test('checking a link shows the account, without using the link up', async () =>
   const token = await getToken();
   for (let i = 0; i < 2; i++) {
     const res = await app.newClient().post('/api/recovery/check', { token });
-    assert.deepEqual(res.data, { valid: true, username: 'kenya' });
+    assert.deepEqual(res.data, { valid: true, firstName: 'Kenya', email: EMAIL });
   }
   assert.equal((await app.newClient().post('/api/recovery/check', { token: 'x'.repeat(43) })).data.valid, false);
 });
@@ -111,10 +114,10 @@ test('setting a new password: old one stops working, new one works, and you are 
   const client = app.newClient();
   const res = await client.post('/api/recovery/password', { token, password: NEW_PASSWORD });
   assert.equal(res.status, 200);
-  assert.equal((await client.get('/api/me')).data.username, 'kenya', 'signed in straight away');
+  assert.equal((await client.get('/api/me')).data.email, EMAIL, 'signed in straight away');
 
-  assert.equal((await signIn(app.newClient(), 'kenya', PASSWORD)).status, 401, 'old password refused');
-  assert.equal((await signIn(app.newClient(), 'kenya', NEW_PASSWORD)).status, 200, 'new password works');
+  assert.equal((await signIn(app.newClient(), EMAIL, PASSWORD)).status, 401, 'old password refused');
+  assert.equal((await signIn(app.newClient(), EMAIL, NEW_PASSWORD)).status, 200, 'new password works');
   assert.match(app.db.prepare('SELECT password_hash FROM users').get().password_hash, /^\$argon2id\$/);
 });
 
@@ -130,10 +133,10 @@ test('recovery signs out every other device', async () => {
 });
 
 test('recovery clears a password lockout', async () => {
-  for (let i = 0; i < 5; i++) await signIn(app.newClient(), 'kenya', 'wrong password!');
-  assert.equal((await signIn(app.newClient(), 'kenya', NEW_PASSWORD)).status, 429);
+  for (let i = 0; i < 5; i++) await signIn(app.newClient(), EMAIL, 'wrong password!');
+  assert.equal((await signIn(app.newClient(), EMAIL, NEW_PASSWORD)).status, 429);
   await app.newClient().post('/api/recovery/password', { token: await getToken(), password: NEW_PASSWORD });
-  assert.equal((await signIn(app.newClient(), 'kenya', NEW_PASSWORD)).status, 200);
+  assert.equal((await signIn(app.newClient(), EMAIL, NEW_PASSWORD)).status, 200);
 });
 
 test('the owner is emailed when their password is changed this way', async () => {
@@ -152,7 +155,7 @@ test('the new password must follow the usual rules, and a mistake keeps the link
   assert.equal(short.status, 400);
   assert.match(short.data.errors.password, /at least 12/);
   const withName = await client.post('/api/recovery/password', { token, password: 'kenya-forever-123' });
-  assert.match(withName.data.errors.password, /username/);
+  assert.match(withName.data.errors.password, /email address/);
   assert.equal((await client.post('/api/recovery/password', { token, password: NEW_PASSWORD })).status, 200,
     'the link still works after the mistakes');
 });
@@ -163,7 +166,7 @@ test('each link works only once', async () => {
   const again = await app.newClient().post('/api/recovery/password', { token, password: 'another new passphrase' });
   assert.equal(again.status, 400);
   assert.equal((await app.newClient().post('/api/recovery/signin', { token })).status, 400);
-  assert.equal((await signIn(app.newClient(), 'kenya', NEW_PASSWORD)).status, 200, 'first change stands');
+  assert.equal((await signIn(app.newClient(), EMAIL, NEW_PASSWORD)).status, 200, 'first change stands');
 });
 
 test('links expire after 15 minutes', async () => {
@@ -176,7 +179,7 @@ test('links expire after 15 minutes', async () => {
 
 test('an email-confirmation link cannot be used to recover an account', async () => {
   app.db.exec('UPDATE users SET email_verified_at = NULL');
-  await app.newClient().post('/api/register', { username: 'second', email: 'second@example.com', password: PASSWORD });
+  await app.newClient().post('/api/register', { firstName: 'Sam', email: 'second@example.com', password: PASSWORD });
   const confirmToken = tokenFrom(app.sentEmails.at(-1));
   assert.equal((await app.newClient().post('/api/recovery/signin', { token: confirmToken })).status, 400);
   assert.equal((await app.newClient().post('/api/recovery/password', { token: confirmToken, password: NEW_PASSWORD })).status, 400);
@@ -197,7 +200,7 @@ test('"sign in and add a passkey" signs you in, everywhere else out, and emails 
   const client = app.newClient();
   const res = await client.post('/api/recovery/signin', { token: await getToken() });
   assert.equal(res.status, 200);
-  assert.equal((await client.get('/api/me')).data.username, 'kenya');
+  assert.equal((await client.get('/api/me')).data.email, EMAIL);
   assert.equal((await old.get('/api/me')).status, 401);
   assert.equal(app.sentEmails.at(-1).subject, 'Your account was recovered');
   assert.equal((await signIn(app.newClient())).status, 200, 'the password is unchanged');

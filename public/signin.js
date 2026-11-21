@@ -27,7 +27,9 @@ async function postJson(url, body) {
 // Messages passed from other pages, e.g. /signin?signed-out
 const params = new URLSearchParams(location.search);
 if (params.has('signed-out')) showStatus("You've signed out.", 'success');
-if (params.has('registered')) showStatus("Your account is ready. We've emailed you a link to confirm your address.", 'success');
+if (params.has('registered')) {
+  showStatus("Almost done: we've emailed you a link. Confirm your address, then sign in.", 'success');
+}
 if (params.has('deletion-scheduled')) {
   showStatus('Your account will be deleted in 7 days. Changed your mind? Sign in before then to cancel.', 'success');
 }
@@ -50,12 +52,12 @@ document.querySelectorAll('[data-toggle]').forEach((button) => {
 
 form.addEventListener('submit', async (event) => {
   event.preventDefault();
-  const username = form.elements.username.value.trim();
+  const email = form.elements.email.value.trim();
   const password = form.elements.password.value;
 
-  if (!username || !password) {
-    showStatus('Enter your username and password.', 'error');
-    form.elements[username ? 'password' : 'username'].focus();
+  if (!email || !password) {
+    showStatus('Enter your email and password.', 'error');
+    form.elements[email ? 'password' : 'email'].focus();
     return;
   }
 
@@ -64,12 +66,17 @@ form.addEventListener('submit', async (event) => {
   showStatus('', '');
 
   try {
-    const { ok, data } = await postJson('/api/login', { username, password });
+    const { ok, data } = await postJson('/api/login', { email, password });
     if (ok) {
       location.assign('/account');
       return;
     }
-    showStatus(data.error ?? 'Something went wrong. Please try again.', 'error');
+    if (data.error === 'unconfirmed') {
+      showStatus(data.message, 'error');
+      resendEmail.value = email;
+    } else {
+      showStatus(data.error ?? 'Something went wrong. Please try again.', 'error');
+    }
     form.elements.password.value = '';
     form.elements.password.focus();
   } catch {
@@ -80,10 +87,39 @@ form.addEventListener('submit', async (event) => {
   }
 });
 
+// --- A new confirmation link ---------------------------------------------------
+
+const resendForm = document.getElementById('resend-form');
+const resendEmail = document.getElementById('resend-email');
+const resendStatus = document.getElementById('resend-status');
+
+resendForm.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const email = resendEmail.value.trim();
+  if (!email || !resendEmail.checkValidity()) {
+    resendStatus.textContent = 'Enter a valid email address.';
+    resendStatus.className = 'status error';
+    resendEmail.focus();
+    return;
+  }
+  const button = resendForm.querySelector('button');
+  button.disabled = true;
+  try {
+    const { ok, data } = await postJson('/api/resend-verification', { email });
+    resendStatus.textContent = data.message ?? data.error ?? 'Something went wrong. Please try again.';
+    resendStatus.className = `status ${ok ? 'success' : 'error'}`;
+  } catch {
+    resendStatus.textContent = "Couldn't reach the server. Check your connection and try again.";
+    resendStatus.className = 'status error';
+  } finally {
+    button.disabled = false;
+  }
+});
+
 // --- Passkey sign-in ---------------------------------------------------------
 
 // Asks the server for a challenge, lets the device sign it, and sends it back.
-// With autofill, the browser waits quietly and offers passkeys in the username field.
+// With autofill, the browser waits quietly and offers passkeys in the email field.
 async function signInWithPasskey({ autofill = false } = {}) {
   const { ok, data: optionsJSON } = await postJson('/api/passkeys/login/options');
   if (!ok) throw new ServerError(optionsJSON.error ?? 'Something went wrong. Please try again.');
@@ -91,7 +127,9 @@ async function signInWithPasskey({ autofill = false } = {}) {
   const response = await startAuthentication({ optionsJSON, useBrowserAutofill: autofill });
 
   const result = await postJson('/api/passkeys/login/verify', { response });
-  if (!result.ok) throw new ServerError(result.data.error ?? "That passkey couldn't be used to sign in.");
+  if (!result.ok) {
+    throw new ServerError(result.data.message ?? result.data.error ?? "That passkey couldn't be used to sign in.");
+  }
   location.assign('/account');
 }
 

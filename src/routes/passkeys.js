@@ -13,6 +13,7 @@ import {
   verifyRegistrationResponse,
 } from '@simplewebauthn/server';
 import { requireSignIn, startSession } from '../sessions.js';
+import { UNCONFIRMED } from './auth.js';
 import { loginLimiter } from '../rate-limits.js';
 import { expectedOrigin, rpID, rpName } from '../config.js';
 import {
@@ -34,8 +35,8 @@ router.post('/passkeys/register/options', requireSignIn, async (req, res) => {
   const options = await generateRegistrationOptions({
     rpName,
     rpID,
-    userName: user.username,
-    userDisplayName: user.username,
+    userName: user.email,                                                         // shown when choosing a passkey
+    userDisplayName: [user.first_name, user.last_name].filter(Boolean).join(' '),   // shown in the device's passkey list
     userID: new Uint8Array(Buffer.from(user.webauthn_user_id, 'base64url')),
     attestationType: 'none',
     // Don't let the same device add a second passkey for this account.
@@ -131,7 +132,7 @@ router.delete('/passkeys/:id', requireSignIn, (req, res) => {
 // POST /api/passkeys/login/options
 router.post('/passkeys/login/options', async (req, res) => {
   // No list of allowed passkeys: the device offers whichever passkeys it has for
-  // this site, so the user doesn't even need to type a username.
+  // this site, so the user doesn't even need to type their email.
   const options = await generateAuthenticationOptions({ rpID, userVerification: 'required' });
   saveChallenge(options.challenge, 'login');
   res.json(options);
@@ -177,8 +178,11 @@ router.post('/passkeys/login/verify', loginLimiter, async (req, res) => {
 
   const { newCounter, credentialBackedUp } = verification.authenticationInfo;
   markPasskeyUsed(passkey.id, newCounter, credentialBackedUp);
+  // Passkeys can only be added while signed in, so this shouldn't happen: belt and braces.
+  if (!passkey.email_verified_at) return res.status(403).json(UNCONFIRMED);
+
   startSession(req, res, passkey.user_id);
-  res.json({ username: passkey.username });
+  res.json({ firstName: passkey.first_name });
 });
 
 export default router;

@@ -43,6 +43,9 @@ if (isProduction && !appOrigin) {
 // How long an account waits after the owner asks to delete it, so they can change their mind.
 export const deletionGraceDays = 7;
 
+// Accounts whose email address still isn't confirmed this long after sign-up are deleted.
+export const unconfirmedAccountDays = 7;
+
 // --- Passkeys --------------------------------------------------------------
 // Passkeys are tied to a domain (the "relying party ID"). They're created for
 // the host in APP_ORIGIN (kenyachan.dev in production, localhost on your computer)
